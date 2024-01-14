@@ -6,7 +6,8 @@ const Items = require("../controllers/hydrogenPrice-ctrl");
 
 const router = express.Router();
 
-router.get("/hydrogenPrices", Items.getHydrogenPrice);
+router.get("/gethydrogenPrices", Items.getHydrogenPrice);
+router.get("/hydrogenPrices", Items.hydrogenPrice);
 router.post("/convert-currency", Items.convertUSDtoEUR);
 router.post("/energy-price", Items.energyPrice);
 router.get("/solar-irradiance", Items.solarIrradiance);

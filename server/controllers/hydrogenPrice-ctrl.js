@@ -45,6 +45,33 @@ getHydrogenPrice = async (req, res) => {
     });
 };
 
+hydrogenPrice = async () => {
+  let options = {
+    method: "GET",
+    url: "https://www.spglobal.com/commodityinsights/PlattsContent/_assets/_files/en/specialreports/energy-transition/platts-hydrogen-price-wall/data/hydro_202312.json",
+  };
+
+  await axios
+    .request(options)
+    .then(function (response) {
+      data.hydrogen = response.data;
+      axios({
+        method: "post",
+        url: "http://localhost:4000/api/convert-currency",
+        data: {
+          amount: data.hydrogen.price,
+        },
+      }).then((response1) => {
+        return res
+          .status(200)
+          .json({ success: true, data: response1.data.data });
+      });
+    })
+    .catch(function (error) {
+      return res.status(400).json({ success: false, message: error });
+    });
+}
+
 getHydrogenPriceTimeSeries = async (req, res) => {
   const options = {
     method: "GET",
@@ -748,8 +775,11 @@ mainFunction = async (req, res) => {
   });
 };
 
+
+
 module.exports = {
   getHydrogenPrice,
+  hydrogenPrice,
   getHydrogenPriceTimeSeries,
   hyrogenPricesPrediction,
   convertUSDtoEUR,
