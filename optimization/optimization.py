@@ -44,8 +44,7 @@ def constraint(x):
     for i in range(len(x)):
         constraints_list.append(x[i])
 
-    constraints_list.append((-x[0] - 1))
-    constraints_list.append((-x[3] - 1))
+  
 
     # # Restringir (Xn - Xn+1) + (Xn-5 - Xn-5+1) < 0  --> Certtificar que Xn nao excede a energia disponivel na bateria
     # for i in range(n_subexpressions):
@@ -163,22 +162,20 @@ def constraint(x):
 
 
 
-@app.route('/optimize', methods=['GET', 'POST'])
+@app.route('/optimize', methods=['POST'])
 def optimize():
-    if request.method == 'GET':
-        return jsonify({'message': 'This endpoint accepts POST requests only.'})
-
     try:
         data = request.get_json()
 
-        # Extract v_values and h_values from the request data
+        # Extract v_values, h_values, and PV from the request data
         v_values = data.get('v_values', [])
         h_values = data.get('h_values', [])
+        PV = data.get('PV', [])
 
-        # Ensure the lengths of v_values and h_values match the expected length
+        # Ensure the lengths of v_values, h_values, and PV match the expected length
         n_subexpressions = len(v_values)
-        if len(h_values) != n_subexpressions:
-            return jsonify({'error': 'Invalid input: v_values and h_values must have the same length'}), 400
+        if len(h_values) != n_subexpressions or len(PV) != n_subexpressions:
+            return jsonify({'error': 'Invalid input: v_values, h_values, and PV must have the same length'}), 400
 
         # Set up the optimization
         x0 = np.ones(4 * n_subexpressions) / \
@@ -216,6 +213,8 @@ def optimize():
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
 
 if __name__ == '__main__':
     app.run(debug=True)
