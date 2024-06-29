@@ -30,11 +30,6 @@ def objective(x, *args):
         vi = args[i]     # Get the v value for the i-th subexpression
         hi = args[i + n ]  # Get the h value for the i-th subexpression
 
-        # if x[4*i] > 1:
-        #     x[4*i+1] = 0  # Set x[4*i+1] to 0 if x[4*i] > 0
-        # if x[4*i+1] > 1:
-        #     x[4*i] = 0  # Set x[4*i+1] to 0 if x[4*i] > 0
-
         subexpression = (PV[i] - x[4*i] + (x[4*i+1] * eta_bat_dis) -
                          x[4*i+2] - q_values[i]) * vi + (x[4*i+3]) * hi
         result += subexpression
@@ -69,11 +64,7 @@ def constraint(x):
         constraints_list.append(x[i])
 
 
-    # for i in range(n_subexpressions):
-    #     expression = PV[i] - x[i*4] + \
-    #         (x[i*4+1]*eta_bat_dis) - x[i*4+2] + x[i*4 + 4] - q_values[i]
-    #     constraints_list.append(expression)
-
+   
         
 
     # Certificar que P_dis <= P_max_dis_bat que P_dis é a energia maxima que posso tirar da bateria numa hora
@@ -123,10 +114,7 @@ def constraint(x):
             expression = expression + (x[j*4+2]*eta_hydr)-x[j*4+3]
         constraints_list.append(expression)
 
-    # Delta charge + Delta charge hydrogen < PV + P_pur  Certificar que a energia que se armazena na bateria e no hydrogen é menor que a energia que se tem disponivel
-    # for i in range(n_subexpressions):
-    #     expression = PV[i] + x[i*4+4] - x[i*4] - x[i*4+2]
-    #     constraints_list.append(expression)
+   
     
 
     constraints = np.array(constraints_list)
@@ -188,7 +176,6 @@ def optimize():
             hydr_produced = x_opt[i+2] * eta_hydr
             hydr_value = x_opt[i+3]
             pv_value = PV[index] - (x_opt[i]) + (x_opt[i+1]*eta_bat_dis) - x_opt[i+2]  - q_values[index]
-            # energy_bought = x_opt[i+4] 
             energy_bought = 0
 
             if pv_value < 0:
