@@ -18,7 +18,7 @@
     "mathjs": "^11.6.0",
     "ml-regression": "^5.0.0",
     "mongoose": "^6.4.0",
-    "nodemon": "^2.0.16",
+    "nodemon": "^2.0.22",
     "numeric": "^1.2.6",
     "optimization-js": "^1.5.0",
     "timeseries-analysis": "^1.0.12"

@@ -10,7 +10,7 @@ router.get("/gethydrogenPrices", Items.getHydrogenPrice);
 router.get("/hydrogenPrices", Items.hydrogenPrice);
 router.post("/convert-currency", Items.convertUSDtoEUR);
 router.post("/energy-price", Items.energyPrice);
-router.get("/solar-irradiance", Items.solarIrradiance);
+router.post("/solar-irradiance", Items.solarIrradiance);
 router.post("/objective-function", Items.objectiveFunction);
 router.get("/hydrogenPrices-timeseries", Items.getHydrogenPriceTimeSeries);
 router.get("/hydrogenPrices-prediction", Items.hyrogenPricesPrediction);

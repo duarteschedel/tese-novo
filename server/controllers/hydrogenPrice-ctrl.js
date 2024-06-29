@@ -1,7 +1,6 @@
 const axios = require("axios");
 const { default: mongoose } = require("mongoose");
 const solarIrradianceModel = require("../models/solar-irradiance");
-const optimjs = require("optimization-js");
 const numeric = require("numeric");
 const math = require("mathjs");
 const ml = require("ml-regression");
@@ -13,6 +12,8 @@ var holtWinters = require("holtwinters-md");
 //Get hydrogen price from the Global X Hydrogen ETF
 getHydrogenPrice = async (req, res) => {
   const data = {};
+
+  console.log(req.body);
 
   let options = {
     method: "GET",
@@ -45,32 +46,23 @@ getHydrogenPrice = async (req, res) => {
     });
 };
 
-hydrogenPrice = async () => {
-  let options = {
-    method: "GET",
-    url: "https://www.spglobal.com/commodityinsights/PlattsContent/_assets/_files/en/specialreports/energy-transition/platts-hydrogen-price-wall/data/hydro_202312.json",
-  };
+hydrogenPrice = async (req, res) => {
+  try {
+    let options = {
+      method: "GET",
+      url: "https://www.spglobal.com/commodityinsights/PlattsContent/_assets/_files/en/specialreports/energy-transition/platts-hydrogen-price-wall/data/hydro_202312.json",
+    };
 
-  await axios
-    .request(options)
-    .then(function (response) {
-      data.hydrogen = response.data;
-      axios({
-        method: "post",
-        url: "http://localhost:4000/api/convert-currency",
-        data: {
-          amount: data.hydrogen.price,
-        },
-      }).then((response1) => {
-        return res
-          .status(200)
-          .json({ success: true, data: response1.data.data });
-      });
-    })
-    .catch(function (error) {
-      return res.status(400).json({ success: false, message: error });
-    });
-}
+    const response = await axios.request(options);
+    const data = response.data;
+
+    console.log(response.data);
+
+    return res.status(200).json({ success: true, response: data });
+  } catch (error) {
+    return res.status(400).json({ success: false, response: error });
+  }
+};
 
 getHydrogenPriceTimeSeries = async (req, res) => {
   const options = {
@@ -127,8 +119,12 @@ energyPrice = async (req, res) => {
   month = req.body.month;
   day = req.body.day;
 
+  console.log(req.body);
+
   const date =
     day + "_" + month + "_" + year + "_" + day + "_" + month + "_" + year;
+
+  console.log(date);
 
   const url =
     "https://www.omie.es/sites/default/files/dados/AGNO_" +
@@ -141,6 +137,8 @@ energyPrice = async (req, res) => {
 
   let array2 = [];
   let array3 = [];
+
+  console.log(url);
 
   options = {
     method: "GET",
@@ -206,25 +204,35 @@ solarIrradiance = async (req, res) => {
   //qRCRFvDlNMwIFc07Ra8MGo5ryGMwhumg
   //MAmpqt5_RGaY0H_5LyKqE0dYxTuh7K9a
 
-  const options = {
-    method: "GET",
-    url: "https://solcast.p.rapidapi.com/pv_power/forecasts",
-    params: {
-      api_key: "qRCRFvDlNMwIFc07Ra8MGo5ryGMwhumg",
-      capacity: req.body.capacity,
-      latitude: req.body.latitude,
-      longitude: req.body.longitude,
-      azimuth: req.body.azimuth,
-      install_date: req.body.install_date,
-      loss_factor: req.body.loss_factor,
-      tilt: req.body.tilt,
-      format: "json",
-    },
-    headers: {
-      "X-RapidAPI-Key": "ca013ab033mshf7dedb5f131e3a7p1ae97fjsnf5149e3df792",
-      "X-RapidAPI-Host": "solcast.p.rapidapi.com",
-    },
-  };
+  try {
+    const options = {
+      method: "GET",
+      url: "https://solcast.p.rapidapi.com/pv_power/forecasts",
+      params: {
+        api_key: "MAmpqt5_RGaY0H_5LyKqE0dYxTuh7K9a",
+        capacity: req.body.capacity,
+        latitude: req.body.latitude,
+        longitude: req.body.longitude,
+        azimuth: req.body.azimuth,
+        install_date: req.body.install_date,
+        loss_factor: req.body.loss_factor,
+        tilt: req.body.tilt,
+        format: "json",
+      },
+      headers: {
+        "X-RapidAPI-Key": "ca013ab033mshf7dedb5f131e3a7p1ae97fjsnf5149e3df792",
+        "X-RapidAPI-Host": "solcast.p.rapidapi.com",
+      },
+    };
+
+    const response = await axios.request(options);
+
+    const data = response.data.forecasts;
+
+    return res.status(200).json({ sucess: true, result: data });
+  } catch (error) {
+    return res.status(400).json({ sucess: false, result: error });
+  }
 
   await solarIrradianceModel
     .find({})
@@ -774,8 +782,6 @@ mainFunction = async (req, res) => {
     data_output: data_output,
   });
 };
-
-
 
 module.exports = {
   getHydrogenPrice,

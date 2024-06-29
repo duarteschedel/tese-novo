@@ -1,10 +1,12 @@
 import numpy as np
 from scipy.optimize import minimize
 from flask import Flask, jsonify, request
+from flask_cors import CORS
 
 # Define api
 
 app = Flask(__name__)
+CORS(app)
 
 
 # Define the objective function to be maximized
@@ -12,18 +14,29 @@ app = Flask(__name__)
 
 def objective(x, *args):
     n = len(args) // 2
+    PV = request.get_json().get('PV', [])
+    q_values = request.get_json().get('q_values', [])
+    eta_bat_ch = request.get_json().get('eta_bat_ch')
+    eta_bat_dis = request.get_json().get('eta_bat_dis')
+    eta_hydr = request.get_json().get('eta_hydr')
 
     if len(x) != 4 * n:
         raise ValueError(
             "The number of variables (xi) must be 4 times the number of subexpressions.")
 
     result = 0
+
     for i in range(n):
         vi = args[i]     # Get the v value for the i-th subexpression
-        hi = args[i + 4]  # Get the h value for the i-th subexpression
+        hi = args[i + n ]  # Get the h value for the i-th subexpression
 
-        subexpression = (PV[i] - x[4*i] + x[4*i+1] -
-                         x[4*i+2]) * vi + x[4*i+3] * hi
+        # if x[4*i] > 1:
+        #     x[4*i+1] = 0  # Set x[4*i+1] to 0 if x[4*i] > 0
+        # if x[4*i+1] > 1:
+        #     x[4*i] = 0  # Set x[4*i+1] to 0 if x[4*i] > 0
+
+        subexpression = (PV[i] - x[4*i] + (x[4*i+1] * eta_bat_dis) -
+                         x[4*i+2] - q_values[i]) * vi + (x[4*i+3]) * hi
         result += subexpression
 
     return -result  # Negate the result to convert maximization to minimization
@@ -31,102 +44,75 @@ def objective(x, *args):
 # Define the constraint function
 
 
-n_subexpressions = 4  # Change this to the number of subexpressions in your function
-p_max_bat = 100
-p_max_hydr = 20
-PV = [20, 13, 1, 10]
-
 
 def constraint(x):
     # n = len(x) // n_subexpressions
     constraints_list = []
+    PV = request.get_json().get('PV', [])
+    p_max_bat = request.get_json().get('p_max_bat')
+    p_max_hydr = request.get_json().get('p_max_hydr')
+    q_values = request.get_json().get('q_values', [])
+    eta_hydr = request.get_json().get('eta_hydr')
+    eta_bat_ch = request.get_json().get('eta_bat_ch')
+    eta_bat_dis = request.get_json().get('eta_bat_dis')
+    
+
+    p_max_dis_bat = request.get_json().get('p_max_dis_bat')
+    p_max_chg_bat = request.get_json().get('p_max_chg_bat')
+    p_max_dis_hydr = request.get_json().get('p_max_dis_hydr')
+    p_max_chg_hydr = request.get_json().get('p_max_chg_hydr')
+
+
+    n_subexpressions = len(PV)
     # xn > 0
     for i in range(len(x)):
         constraints_list.append(x[i])
 
-  
 
-    # # Restringir (Xn - Xn+1) + (Xn-5 - Xn-5+1) < 0  --> Certtificar que Xn nao excede a energia disponivel na bateria
     # for i in range(n_subexpressions):
-    #     expression = 0
-    #     for j in range(i+1):
-    #         expression = expression - x[j*5]+x[j*5+1]
+    #     expression = PV[i] - x[i*4] + \
+    #         (x[i*4+1]*eta_bat_dis) - x[i*4+2] + x[i*4 + 4] - q_values[i]
     #     constraints_list.append(expression)
 
-    # # Restringir (Xn+1 - Xn) + (Xn-5+1 - Xn-5) ... < P_max Bateria
-    # for i in range(n_subexpressions):
-    #     expression = 0
-    #     for j in range(i+1):
-    #         expression = expression + x[j*5]-x[j*5+1]
-    #     expression = expression + p_max_bat
-    #     constraints_list.append(expression)
+        
 
-    # # Certificar que o Pch_el é menor que a P-max que se pode armazenar de Hydrogen
-    # for i in range(n_subexpressions):
-    #     expression = 0
-    #     for j in range(i+1):
-    #         expression = expression - x[j*5+3]+x[j*5+4]
-    #     expression = expression + p_max_hydr
-    #     constraints_list.append(expression)
-
-    # # Certificar que nao se vende mais hydrogen do que aquele que sem tem
-    # for i in range(n_subexpressions):
-    #     expression = 0
-    #     for j in range(i+1):
-    #         expression = expression - x[j*5+4]+x[j*5+3]
-    #     constraints_list.append(expression)
-
-    # # Certificar que x0-x1+x2-x3 ... < PV
-    # for i in range(n_subexpressions):
-    #     expression = 0
-    #     for j in range(i+1):
-    #         expression = expression - x[j*5]+x[j*5+1]-x[j*5+2]+x[j*5+3] + PV[i]
-    #     constraints_list.append(expression)
-
-    # Pch + Ppv + Pdis < PV
-    # for i in range(n_subexpressions):
-    #     expression = -x[i*5+1] - x[i*5+2] - x[i*5+2] + PV[i]
-    #     constraints_list.append(expression)
-
-    # # Pch - Pdis + Ppv + Pch_el - Pdis_el < PV
-    # for i in range(n_subexpressions):
-    #     expression = -x[i*5+1] + x[i*5+2] - \
-    #         x[i*5+2] - x[i*5+3] + x[i*5+4] + PV[i]
-    #     constraints_list.append(expression)
-
-    
-
-    # # P_pv < PV
-    # for i in range(n_subexpressions):
-    #     expression = -x[i*5+2] + PV[i]
-    #     constraints_list.append(expression)
-    # ------------------------------------------
-    # PV - x0 + x1 - x2 > 0 | PV - Pch + Pdis - Pch_el > 0
+    # Certificar que P_dis <= P_max_dis_bat que P_dis é a energia maxima que posso tirar da bateria numa hora
     for i in range(n_subexpressions):
-        expression = PV[i] - x[i*4] + \
-            x[i*4+1] - x[i*4+2]
+        expression = p_max_dis_bat - x[i*4+1]
+        constraints_list.append(expression)
+    # Certificar que P_ch <= P_max_ch_bat que P_ch é a energia maxima que posso carregar na bateria numa hora
+    for i in range(n_subexpressions):
+        expression = p_max_chg_bat - x[i*4]
+        constraints_list.append(expression)
+    # Certificar que P_dis_hydr <= P_max_dis_hydr que P_dis é a energia maxima que posso tirar da bateria numa hora
+    for i in range(n_subexpressions):
+        expression = p_max_dis_hydr - x[i*4+3]
+        constraints_list.append(expression)
+    # Certificar que P_ch_hyd <= P_max_ch_hydr que P_ch é a energia maxima que posso carregar na bateria numa hora
+    for i in range(n_subexpressions):
+        expression = p_max_chg_hydr - x[i*4+2]
         constraints_list.append(expression)
     
-    # (x1 - x0) + (x5 - x4) + Pmax > 0 | (Pch0 - Pdis0) + (Pch1 - Pdis1) < Pmax | Certificar que o Pch é menor que a P-max que se pode armazenar de energia na bateria
+    # (x1 - x0) + (x4 - x4) + Pmax > 0 | (Pch0 - Pdis0) + (Pch1 - Pdis1) < Pmax | Certificar que o Pch é menor que a P-max que se pode armazenar de energia na bateria
     for i in range(n_subexpressions):
         expression = 0
         for j in range(i+1):
-            expression = expression + x[j*4+1]-x[j*4]
+            expression = expression + (x[j*4+1] )-(x[j*4]*eta_bat_ch)
         expression = expression + p_max_bat
         constraints_list.append(expression)
     
-    # (x0 - x1) + (x4 - x5) > 0 | (Pch0 - Pdis0) + (Pch1 - Pdis1) > 0 | Certificar que nao se vende mais energia do que aquele que sem tem
+    # (x0 - x1) + (x4 - x4) > 0 | (Pch0 - Pdis0) + (Pch1 - Pdis1) > 0 | Certificar que nao se vende mais energia do que aquele que sem tem
     for i in range(n_subexpressions):
         expression = 0
         for j in range(i+1):
-            expression = expression + x[j*4]-x[j*4+1]
+            expression = expression + (x[j*4]* eta_bat_ch)-(x[j*4+1])
         constraints_list.append(expression)
     
     # (x3 - x2) + (x7 - x6) + Pmax_el > 0 | (Pch0_el - Pdis0_el) + (Pch1_el - Pdis1_el) < Pmax_el | Certificar que o Pch_el é menor que a P-max que se pode armazenar de Hydrogen
     for i in range(n_subexpressions):
         expression = 0
         for j in range(i+1):
-            expression = expression + x[j*4+3]-x[j*4+2]
+            expression = expression + x[j*4+3]-(x[j*4+2]*eta_hydr)
         expression = expression + p_max_hydr
         constraints_list.append(expression)
     
@@ -134,27 +120,16 @@ def constraint(x):
     for i in range(n_subexpressions):
         expression = 0
         for j in range(i+1):
-            expression = expression + x[j*4+2]-x[j*4+3]
-        constraints_list.append(expression)
-    
-    # Pch < PV
-    for i in range(n_subexpressions):
-        expression = -x[i*4] + PV[i]
+            expression = expression + (x[j*4+2]*eta_hydr)-x[j*4+3]
         constraints_list.append(expression)
 
-    # Pch_el < PV
-    for i in range(n_subexpressions):
-        expression = -x[i*4+2] + PV[i]
-        constraints_list.append(expression)
+    # Delta charge + Delta charge hydrogen < PV + P_pur  Certificar que a energia que se armazena na bateria e no hydrogen é menor que a energia que se tem disponivel
+    # for i in range(n_subexpressions):
+    #     expression = PV[i] + x[i*4+4] - x[i*4] - x[i*4+2]
+    #     constraints_list.append(expression)
+    
 
     constraints = np.array(constraints_list)
-    # constraints = np.zeros(2 * (n - 5))
-    # for i in range(n - 5):
-    #     # Xn - Xn+1 + Xn-5 - Xn-5+1 < 0
-    #     constraints[i] = (x[i] - x[i + 1]) + (x[i + 5] - x[i + 6])
-    #     # -(Xn - Xn+1) - (Xn-5 - Xn-5+1) - 2000 < 0
-    #     constraints[i + n - 5] = -(x[i] - x[i + 1]) - \
-    #         (x[i + 5] - x[i + 6]) - 2000
 
     return constraints  # Add xn > 0 and other constraints
 
@@ -170,12 +145,17 @@ def optimize():
         # Extract v_values, h_values, and PV from the request data
         v_values = data.get('v_values', [])
         h_values = data.get('h_values', [])
+        q_values = data.get('q_values', []) #informação da carga
+        eta_bat_ch = data.get('eta_bat_ch')
+        eta_bat_dis = data.get('eta_bat_dis')
+        eta_hydr = data.get('eta_hydr')
         PV = data.get('PV', [])
+        n_subexpressions = len(PV)
 
         # Ensure the lengths of v_values, h_values, and PV match the expected length
         n_subexpressions = len(v_values)
-        if len(h_values) != n_subexpressions or len(PV) != n_subexpressions:
-            return jsonify({'error': 'Invalid input: v_values, h_values, and PV must have the same length'}), 400
+        if len(h_values) != n_subexpressions or len(PV) != n_subexpressions or len(q_values) != n_subexpressions:
+            return jsonify({'error': 'Invalid input: v_values, h_values, q_values and PV must have the same length'}), 400
 
         # Set up the optimization
         x0 = np.ones(4 * n_subexpressions) / \
@@ -190,25 +170,54 @@ def optimize():
         # Extract the optimized solution
         x_opt = result.x
 
+        print(x_opt)
+
         # Extract relevant values and format them
         index = 0
         results = []
+
+        
+        energy_in_battery = 0
+        hydrogen_in_storage = 0
+
+
         for i in range(0, len(x_opt), 4):
-            delta_bat_power = x_opt[i] - x_opt[i+1]
-            delta_hydr = x_opt[i+2] - x_opt[i+3]
-            pv_value = PV[index] - delta_bat_power - x_opt[i+2]
+            energy_in_battery = energy_in_battery + (x_opt[i]*eta_bat_ch) - x_opt[i+1]
+            hydrogen_in_storage = hydrogen_in_storage + (x_opt[i+2]*eta_hydr) - x_opt[i+3]
+            delta_bat_power = (x_opt[i]) - (x_opt[i+1])
+            hydr_produced = x_opt[i+2] * eta_hydr
+            hydr_value = x_opt[i+3]
+            pv_value = PV[index] - (x_opt[i]) + (x_opt[i+1]*eta_bat_dis) - x_opt[i+2]  - q_values[index]
+            # energy_bought = x_opt[i+4] 
+            energy_bought = 0
+
+            if pv_value < 0:
+                energy_bought = -pv_value
+                pv_value = 0       
+
+            formatted_energy_in_battery = "{:.2f}".format(energy_in_battery)
+            formatted_delta_bat_power = "{:.2f}".format(delta_bat_power)
+            formatted_pv_value = "{:.2f}".format(pv_value)
+            formatted_hydr_value = "{:.2f}".format(hydr_value)
+            formatted_hydr_produced = "{:.2f}".format(hydr_produced)
+            formatted_energy_bought = "{:.2f}".format(energy_bought)
+            formatted_hydrogen_in_storage = "{:.2f}".format(hydrogen_in_storage)
+
+            
+
             index = index + 1
-
-            formatted_delta_bat_power = "{:.0f}".format(delta_bat_power)
-            formatted_pv_value = "{:.0f}".format(pv_value)
-            formatted_delta_hydr = "{:.0f}".format(delta_hydr)
-
+            
             results.append({
-                'delta_bat_power': formatted_delta_bat_power,
-                'EnergySold': formatted_pv_value,
-                'delta_hydr': formatted_delta_hydr
+                'Delta Battery Energy': formatted_delta_bat_power,
+                'Energy Sold': formatted_pv_value,
+                'Hydrogen Produced': formatted_hydr_produced,
+                'Hydrogen Sold': formatted_hydr_value,
+                'Energy Bougth': formatted_energy_bought,
+                'Energy In Battery': formatted_energy_in_battery,
+                'Hydrogen In Storage': formatted_hydrogen_in_storage,
+                
             })
-
+        
         return jsonify({'results': results, 'objective_value': -result.fun})
 
     except Exception as e:
